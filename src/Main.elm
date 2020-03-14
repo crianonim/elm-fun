@@ -26,7 +26,7 @@ type alias Model =
     , name : String
     , rooms : List Room
     , currentRoom : String
-    , btnName : String
+    
     }
 
 
@@ -54,7 +54,7 @@ init =
         , Room "safety" "Safety" [ Exit "South" "corridor" ] False
         ]
     , currentRoom = "cell"
-    , btnName = "No"
+    
     }
 
 
@@ -63,20 +63,15 @@ init =
 
 
 type Msg
-    = Increment
-    | Decrement
-    | NameChange String
+    = 
+     NameChange String
     | ButtonPressed String
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        Increment ->
-            { model | turn = model.turn + 1 }
-
-        Decrement ->
-            { model | turn = model.turn - 1 }
+       
 
         NameChange newName ->
             { model
@@ -99,7 +94,8 @@ update msg model =
             case exit of
                 Just e ->
                     { model
-                        | currentRoom = e.exitId
+                        | currentRoom = e.exitId,
+                        turn = model.turn + 1
                         , rooms =
                             List.map
                                 (\r ->
@@ -129,10 +125,10 @@ view model =
     case room of
         Just r ->
             div []
-                [ div [] [ text model.btnName ]
-                , button [ onClick Decrement ] [ text "-" ]
-                , div [] [ text (String.fromInt model.turn) ]
-                , button [ onClick Increment ] [ text "+" ]
+                [ 
+                
+                 div [] [ text (String.fromInt model.turn) ]
+                
                 , input [ value model.name, onInput NameChange ] []
                 , div [] [ text model.name ]
                 , viewRoomItem r
@@ -154,7 +150,7 @@ viewRoomItem room =
             ("You are in "
                 ++ room.name
                 ++ (if room.visited then
-                        "and you already visited it before."
+                        " and you have already been here."
 
                     else
                         ""
