@@ -16,8 +16,6 @@ main =
 
 
 
-
-
 -- MODEL
 
 
@@ -26,7 +24,7 @@ type alias Model =
     , name : String
     , rooms : List Room
     , currentRoom : String
-    
+    , page : Page
     }
 
 
@@ -43,6 +41,7 @@ type alias Exit =
     , exitId : String
     }
 
+type Page = StartPage | PlayingPage 
 
 init : Model
 init =
@@ -54,7 +53,7 @@ init =
         , Room "safety" "Safety" [ Exit "South" "corridor" ] False
         ]
     , currentRoom = "cell"
-    
+    , page=StartPage
     }
 
 
@@ -63,16 +62,15 @@ init =
 
 
 type Msg
-    = 
-     NameChange String
+    = NameChange String
     | ButtonPressed String
+    | StartGame
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-       
-
+        StartGame -> {model|page=PlayingPage}
         NameChange newName ->
             { model
                 | name = newName
@@ -94,8 +92,8 @@ update msg model =
             case exit of
                 Just e ->
                     { model
-                        | currentRoom = e.exitId,
-                        turn = model.turn + 1
+                        | currentRoom = e.exitId
+                        , turn = model.turn + 1
                         , rooms =
                             List.map
                                 (\r ->
@@ -118,24 +116,29 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    let
-        room =
-            findInList (\r -> r.id == model.currentRoom) model.rooms
-    in
-    case room of
-        Just r ->
-            div []
-                [ 
-                
-                 div [] [ text (String.fromInt model.turn) ]
-                
-                , input [ value model.name, onInput NameChange ] []
-                , div [] [ text model.name ]
-                , viewRoomItem r
-                ]
+    case model.page of
+       StartPage -> div [] [
+           p [] [text "What is your name?"]
+          , input [ value model.name, onInput NameChange ] []
+          , button [onClick StartGame] [ text "Start" ]
+        ]
+       PlayingPage ->
 
-        Nothing ->
-            div [] [ text "Bad" ]
+          let
+              room =
+                  findInList (\r -> r.id == model.currentRoom) model.rooms
+          in
+          case room of
+              Just r ->
+                  div []
+                      [ div [] [ text (String.fromInt model.turn) ]
+                    
+                      , div [] [ text model.name ]
+                      , viewRoomItem r
+                      ]
+
+              Nothing ->
+                  div [] [ text "Bad" ]
 
 
 viewOption : String -> Html msg
