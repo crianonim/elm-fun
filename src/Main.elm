@@ -41,7 +41,7 @@ type alias Exit =
     , exitId : String
     }
 
-type Page = StartPage | PlayingPage 
+type Page = StartPage | PlayingPage | LostPage
 
 init : Model
 init =
@@ -64,12 +64,15 @@ init =
 type Msg
     = NameChange String
     | ButtonPressed String
+    | Rest
     | StartGame
+    
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
+        Rest -> playTurn 1 model
         StartGame -> {model|page=PlayingPage}
         NameChange newName ->
             { model
@@ -93,7 +96,7 @@ update msg model =
                 Just e ->
                     { model
                         | currentRoom = e.exitId
-                        , turn = model.turn + 1
+                        
                         , rooms =
                             List.map
                                 (\r ->
@@ -104,7 +107,7 @@ update msg model =
                                         r
                                 )
                                 model.rooms
-                    }
+                    } |> playTurn 1
 
                 Nothing ->
                     log "BAD" model
@@ -122,6 +125,7 @@ view model =
           , input [ value model.name, onInput NameChange ] []
           , button [onClick StartGame] [ text "Start" ]
         ]
+       LostPage -> div [] [text "You lost."]
        PlayingPage ->
 
           let
@@ -161,6 +165,7 @@ viewRoomItem room =
             )
         , p [] [ text "The exits are:" ]
         , div [] (List.map viewRoomExit room.exits)
+        , button [onClick Rest] [text "Rest"]
         ]
 
 
@@ -177,3 +182,11 @@ findInList predicate list =
 findRoom : String -> List Room -> Maybe Room
 findRoom roomName list =
     findInList (\r -> r.id == roomName) list
+
+playTurn: Int -> Model -> Model
+playTurn turns model = 
+ let
+    newTurn= model.turn + turns
+ in
+
+ {model | turn = newTurn, page = if newTurn>10 then LostPage else model.page}
