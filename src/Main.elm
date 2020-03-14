@@ -19,6 +19,39 @@ main =
 -- MODEL
 
 
+type alias Room =
+    { id : String
+    , name : String
+    , exits : List Exit
+    , visited : Bool
+    , entities : List Entity
+    }
+
+
+type alias Exit =
+    { name : String
+    , exitId : String
+    }
+
+
+type alias Stats =
+    { hpMax : Int
+    , hp : Int
+    , attack : Int
+    }
+
+
+type Entity
+    = Player Stats String
+    | Enemy Stats String
+
+
+type Page
+    = StartPage
+    | PlayingPage
+    | LostPage
+
+
 type alias Model =
     { turn : Int
     , name : String
@@ -28,32 +61,17 @@ type alias Model =
     }
 
 
-type alias Room =
-    { id : String
-    , name : String
-    , exits : List Exit
-    , visited : Bool
-    }
-
-
-type alias Exit =
-    { name : String
-    , exitId : String
-    }
-
-type Page = StartPage | PlayingPage | LostPage
-
 init : Model
 init =
     { turn = 0
     , name = "Jan"
     , rooms =
-        [ Room "cell" "Cell" [ Exit "North" "corridor" ] False
-        , Room "corridor" "Corridor" [ Exit "North" "safety", Exit "South" "cell" ] False
-        , Room "safety" "Safety" [ Exit "South" "corridor" ] False
+        [ Room "cell" "Cell" [ Exit "North" "corridor" ] False []
+        , Room "corridor" "Corridor" [ Exit "North" "safety", Exit "South" "cell" ] False [ Enemy (Stats 10 10 3) "Goblin" ]
+        , Room "safety" "Safety" [ Exit "South" "corridor" ] False []
         ]
     , currentRoom = "cell"
-    , page=StartPage
+    , page = StartPage
     }
 
 
@@ -66,14 +84,17 @@ type Msg
     | ButtonPressed String
     | Rest
     | StartGame
-    
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        Rest -> playTurn 1 model
-        StartGame -> {model|page=PlayingPage}
+        Rest ->
+            playTurn 1 model
+
+        StartGame ->
+            { model | page = PlayingPage }
+
         NameChange newName ->
             { model
                 | name = newName
@@ -96,7 +117,6 @@ update msg model =
                 Just e ->
                     { model
                         | currentRoom = e.exitId
-                        
                         , rooms =
                             List.map
                                 (\r ->
@@ -107,7 +127,8 @@ update msg model =
                                         r
                                 )
                                 model.rooms
-                    } |> playTurn 1
+                    }
+                        |> playTurn 1
 
                 Nothing ->
                     log "BAD" model
@@ -120,29 +141,31 @@ update msg model =
 view : Model -> Html Msg
 view model =
     case model.page of
-       StartPage -> div [] [
-           p [] [text "What is your name?"]
-          , input [ value model.name, onInput NameChange ] []
-          , button [onClick StartGame] [ text "Start" ]
-        ]
-       LostPage -> div [] [text "You lost."]
-       PlayingPage ->
+        StartPage ->
+            div []
+                [ p [] [ text "What is your name?" ]
+                , input [ value model.name, onInput NameChange ] []
+                , button [ onClick StartGame ] [ text "Start" ]
+                ]
 
-          let
-              room =
-                  findInList (\r -> r.id == model.currentRoom) model.rooms
-          in
-          case room of
-              Just r ->
-                  div []
-                      [ div [] [ text (String.fromInt model.turn) ]
-                    
-                      , div [] [ text model.name ]
-                      , viewRoomItem r
-                      ]
+        LostPage ->
+            div [] [ text "You lost." ]
 
-              Nothing ->
-                  div [] [ text "Bad" ]
+        PlayingPage ->
+            let
+                room =
+                    findInList (\r -> r.id == model.currentRoom) model.rooms
+            in
+            case room of
+                Just r ->
+                    div []
+                        [ div [] [ text (String.fromInt model.turn) ]
+                        , div [] [ text model.name ]
+                        , viewRoomItem r
+                        ]
+
+                Nothing ->
+                    div [] [ text "Bad" ]
 
 
 viewOption : String -> Html msg
@@ -163,10 +186,41 @@ viewRoomItem room =
                         ""
                    )
             )
+        , if List.isEmpty room.entities then
+            p [] [ text "Nothing is here" ]
+
+          else
+            div [] (List.map viewEntity room.entities)
         , p [] [ text "The exits are:" ]
         , div [] (List.map viewRoomExit room.exits)
-        , button [onClick Rest] [text "Rest"]
+        , button [ onClick Rest ] [ text "Rest" ]
         ]
+
+
+viewEntity : Entity -> Html msg
+viewEntity entity =
+    let
+        data =
+            case entity of
+                Player stats s ->
+                    ( s, stats )
+
+                Enemy stats s ->
+                    ( s, stats )
+
+        ( name, statistics ) =
+            data
+    in
+    div [] [ text name, viewStats statistics ]
+
+
+viewStats : Stats -> Html msg
+viewStats stats =
+    let
+        {hpMax, hp, attack}=stats
+    in
+    
+    p [] [text ((String.fromInt hp) ++ "/" ++ (String.fromInt hpMax) ++  " ATT: " ++ (String.fromInt attack)) ]
 
 
 viewRoomExit : Exit -> Html Msg
@@ -183,10 +237,19 @@ findRoom : String -> List Room -> Maybe Room
 findRoom roomName list =
     findInList (\r -> r.id == roomName) list
 
-playTurn: Int -> Model -> Model
-playTurn turns model = 
- let
-    newTurn= model.turn + turns
- in
 
- {model | turn = newTurn, page = if newTurn>10 then LostPage else model.page}
+playTurn : Int -> Model -> Model
+playTurn turns model =
+    let
+        newTurn =
+            model.turn + turns
+    in
+    { model
+        | turn = newTurn
+        , page =
+            if newTurn > 10 then
+                LostPage
+
+            else
+                model.page
+    }
