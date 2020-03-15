@@ -32,6 +32,7 @@ type alias Room =
 type alias Exit =
     { name : String
     , exitId : String
+    , blockedByEntity : Maybe Id
     }
 
 
@@ -75,9 +76,9 @@ init =
     { turn = 0
     , name = "Jan"
     , rooms =
-        [ Room "cell" "Cell" [ Exit "North" "corridor" ] False []
-        , Room "corridor" "Corridor" [ Exit "North" "safety", Exit "South" "cell" ] False [ "#g1" ]
-        , Room "safety" "Safety" [ Exit "South" "corridor" ] False []
+        [ Room "cell" "Cell" [ Exit "North" "corridor" Nothing ] False []
+        , Room "corridor" "Corridor" [ Exit "North" "safety" (Just "#g1"), Exit "South" "cell" Nothing ] False [ "#g1" ]
+        , Room "safety" "Safety" [ Exit "South" "corridor" Nothing ] False []
         ]
     , currentRoom = "cell"
     , page = StartPage
@@ -131,23 +132,42 @@ update msg model =
             in
             case exit of
                 Just e ->
-                    { model
-                        | currentRoom = e.exitId
-                        , rooms =
-                            List.map
-                                (\r ->
-                                    if log "ID" r.id == model.currentRoom then
-                                        { r | visited = True }
+                    case e.blockedByEntity of
+                        Just id ->
+                            case findEntity model id of
+                                Just entity ->
+                                    if entity.alive then
+                                        model
 
                                     else
-                                        r
-                                )
-                                model.rooms
-                    }
-                        |> playTurn 1
+                                        actionGo e model
+
+                                Nothing ->
+                                    actionGo e model
+
+                        Nothing ->
+                            actionGo e model
 
                 Nothing ->
                     log "BAD" model
+
+
+actionGo : Exit -> Model -> Model
+actionGo exit model =
+    { model
+        | currentRoom = exit.exitId
+        , rooms =
+            List.map
+                (\r ->
+                    if log "ID" r.id == model.currentRoom then
+                        { r | visited = True }
+
+                    else
+                        r
+                )
+                model.rooms
+    }
+        |> playTurn 1
 
 
 
