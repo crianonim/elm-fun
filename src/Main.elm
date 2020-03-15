@@ -106,12 +106,13 @@ update msg model =
                     findRoom model.currentRoom model.rooms
 
                 exit =
-                    case room of
-                        Just r ->
-                            findInList (\e -> e.name == buttonName) r.exits
+                    Maybe.andThen (\r -> findInList (\e -> e.name == buttonName) r.exits) room
 
-                        Nothing ->
-                            Nothing
+                -- case room of
+                --     Just r ->
+                --         findInList (\e -> e.name == buttonName) r.exits
+                --     Nothing ->
+                --         Nothing
             in
             case exit of
                 Just e ->
@@ -217,10 +218,10 @@ viewEntity entity =
 viewStats : Stats -> Html msg
 viewStats stats =
     let
-        {hpMax, hp, attack}=stats
+        { hpMax, hp, attack } =
+            stats
     in
-    
-    p [] [text ((String.fromInt hp) ++ "/" ++ (String.fromInt hpMax) ++  " ATT: " ++ (String.fromInt attack)) ]
+    p [] [ text (String.fromInt hp ++ "/" ++ String.fromInt hpMax ++ " ATT: " ++ String.fromInt attack) ]
 
 
 viewRoomExit : Exit -> Html Msg
