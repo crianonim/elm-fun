@@ -55,6 +55,10 @@ type alias Entity =
     }
 
 
+badEntity =
+    Entity "bad" (Stats 0 0 0) "Bad Entity" True
+
+
 type Page
     = StartPage
     | PlayingPage
@@ -191,11 +195,15 @@ view model =
             let
                 room =
                     findInList (\r -> r.id == model.currentRoom) model.rooms
+
+                player =
+                    Maybe.withDefault badEntity (findEntity model "player")
             in
             case room of
                 Just r ->
                     div []
                         [ div [] [ text (String.fromInt model.turn) ]
+                        , div [] [ text ("HP: " ++ String.fromInt player.stats.hp ++ " / " ++ String.fromInt player.stats.hpMax) ]
                         , div [] [ text model.name ]
                         , viewRoomItem model r
                         ]
@@ -310,10 +318,13 @@ attackMsg model attId defId =
 
         Just ( attacker, defender ) ->
             let
-                ( att, def ) =
+                ( att1, def1 ) =
                     attackAction ( attacker, defender )
+
+                ( def, att ) =
+                    attackAction ( def1, att1 )
             in
-            { model | entities = Dict.update defId (\_ -> Just def) model.entities }
+            { model | entities = Dict.update attId (\_ -> Just att) (Dict.update defId (\_ -> Just def) model.entities) }
 
 
 attackAction : ( Entity, Entity ) -> ( Entity, Entity )
