@@ -62,7 +62,6 @@ type alias Model =
     , rooms : List Room
     , currentRoom : String
     , page : Page
-    , player : Entity
     , entities : Dict String Entity
     }
 
@@ -78,8 +77,7 @@ init =
         ]
     , currentRoom = "cell"
     , page = StartPage
-    , entities = Dict.fromList [ ( "#g1", Mob "#g1" (Stats 10 10 3) "Goblin" ) ]
-    , player = Mob "player" (Stats 20 20 4) "Player"
+    , entities = Dict.fromList [ ( "player", Mob "player" (Stats 20 20 4) "Player" ), ( "#g1", Mob "#g1" (Stats 10 10 3) "Goblin" ) ]
     }
 
 
@@ -99,12 +97,7 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         Attack id ->
-            case findEntity model id of
-                Nothing ->
-                    model
-
-                Just entity ->
-                    model
+            attackMsg model "player" id
 
         Rest ->
             playTurn 1 model
@@ -264,6 +257,24 @@ playTurn turns model =
             else
                 model.page
     }
+
+
+attackMsg : Model -> Id -> Id -> Model
+attackMsg model attId defId =
+    case
+        Maybe.map2 (\att def -> ( att, def )) (findEntity model attId) (findEntity model defId)
+    of
+        Nothing ->
+            model
+
+        Just ( attacker, defender ) ->
+            let
+                ( att, def ) =
+                    attackAction ( attacker, defender )
+            in
+            case def of
+                Mob id _ _ ->
+                    { model | entities = Dict.update id (\_ -> Just def) model.entities }
 
 
 attackAction : ( Entity, Entity ) -> ( Entity, Entity )
