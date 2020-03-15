@@ -111,6 +111,7 @@ update msg model =
 
         Rest ->
             playTurn 1 model
+                |> heal "player"
 
         StartGame ->
             { model | page = PlayingPage }
@@ -344,3 +345,18 @@ findEntity model id =
 checkHealth : Model -> Model
 checkHealth model =
     { model | entities = Dict.map (\k v -> { v | alive = v.stats.hp > 0 }) model.entities }
+
+
+heal : Id -> Model -> Model
+heal id model =
+    let
+        ent =
+            Maybe.withDefault badEntity (findEntity model id)
+
+        stats =
+            ent.stats
+
+        st =
+            { stats | hp = ent.stats.hp + 1 }
+    in
+    { model | entities = Dict.update id (\_ -> Just { ent | stats = st }) model.entities }
