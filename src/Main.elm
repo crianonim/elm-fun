@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Debug exposing (..)
+import Dict exposing (Dict)
 import Html exposing (Html, button, div, input, p, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
@@ -24,7 +25,7 @@ type alias Room =
     , name : String
     , exits : List Exit
     , visited : Bool
-    , entities : List Entity
+    , entities : List String
     }
 
 
@@ -41,9 +42,12 @@ type alias Stats =
     }
 
 
+type alias Id =
+    String
+
+
 type Entity
-    = Player Stats String
-    | Enemy Stats String
+    = Mob Id Stats String
 
 
 type Page
@@ -58,6 +62,8 @@ type alias Model =
     , rooms : List Room
     , currentRoom : String
     , page : Page
+    , player : Entity
+    , entities : Dict String Entity
     }
 
 
@@ -67,11 +73,13 @@ init =
     , name = "Jan"
     , rooms =
         [ Room "cell" "Cell" [ Exit "North" "corridor" ] False []
-        , Room "corridor" "Corridor" [ Exit "North" "safety", Exit "South" "cell" ] False [ Enemy (Stats 10 10 3) "Goblin" ]
+        , Room "corridor" "Corridor" [ Exit "North" "safety", Exit "South" "cell" ] False [ "#g1" ]
         , Room "safety" "Safety" [ Exit "South" "corridor" ] False []
         ]
     , currentRoom = "cell"
     , page = StartPage
+    , entities = Dict.fromList [ ( "#g1", Mob "#g1" (Stats 10 10 3) "Goblin" ) ]
+    , player = Mob "player" (Stats 20 20 4) "Player"
     }
 
 
@@ -84,11 +92,20 @@ type Msg
     | ButtonPressed String
     | Rest
     | StartGame
+    | Attack Id
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
+        Attack id ->
+            case findEntity model id of
+                Nothing ->
+                    model
+
+                Just entity ->
+                    model
+
         Rest ->
             playTurn 1 model
 
@@ -162,7 +179,7 @@ view model =
                     div []
                         [ div [] [ text (String.fromInt model.turn) ]
                         , div [] [ text model.name ]
-                        , viewRoomItem r
+                        , viewRoomItem model r
                         ]
 
                 Nothing ->
@@ -174,8 +191,8 @@ viewOption option =
     div [] [ text option ]
 
 
-viewRoomItem : Room -> Html Msg
-viewRoomItem room =
+viewRoomItem : Model -> Room -> Html Msg
+viewRoomItem model room =
     div []
         [ text
             ("You are in "
@@ -191,28 +208,21 @@ viewRoomItem room =
             p [] [ text "Nothing is here" ]
 
           else
-            div [] (List.map viewEntity room.entities)
+            div [] (List.map viewEntity (List.map (findEntity model) room.entities))
         , p [] [ text "The exits are:" ]
         , div [] (List.map viewRoomExit room.exits)
         , button [ onClick Rest ] [ text "Rest" ]
         ]
 
 
-viewEntity : Entity -> Html msg
+viewEntity : Maybe Entity -> Html Msg
 viewEntity entity =
-    let
-        data =
-            case entity of
-                Player stats s ->
-                    ( s, stats )
+    case entity of
+        Just (Mob id stats name) ->
+            div [] [ text name, viewStats stats, button [ onClick (Attack id) ] [ text "Attack!" ] ]
 
-                Enemy stats s ->
-                    ( s, stats )
-
-        ( name, statistics ) =
-            data
-    in
-    div [] [ text name, viewStats statistics ]
+        Nothing ->
+            p [] [ text "Bad entity" ]
 
 
 viewStats : Stats -> Html msg
@@ -254,3 +264,24 @@ playTurn turns model =
             else
                 model.page
     }
+
+
+attackAction : ( Entity, Entity ) -> ( Entity, Entity )
+attackAction ( attacker, defender ) =
+    let
+        ( _, attStats, _ ) =
+            case attacker of
+                Mob i s name ->
+                    ( i, s, name )
+
+        ( defId, defStats, defName ) =
+            case defender of
+                Mob i s name ->
+                    ( i, s, name )
+    in
+    ( attacker, Mob defId { defStats | hp = defStats.hp - attStats.attack } defName )
+
+
+findEntity : Model -> Id -> Maybe Entity
+findEntity model id =
+    Dict.get id model.entities
