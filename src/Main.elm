@@ -334,7 +334,7 @@ attackAction ( attacker, defender ) =
         stats =
             defender.stats
     in
-    ( attacker, { defender | stats = { stats | hp = defender.stats.hp - attacker.stats.attack } } )
+    ( attacker, { defender | stats = { stats | hp = Basics.max (defender.stats.hp - attacker.stats.attack) 0 } } )
 
 
 findEntity : Model -> Id -> Maybe Entity
@@ -357,6 +357,6 @@ heal id model =
             ent.stats
 
         st =
-            { stats | hp = ent.stats.hp + 1 }
+            { stats | hp = Basics.min (ent.stats.hp + 1) ent.stats.hpMax }
     in
     { model | entities = Dict.update id (\_ -> Just { ent | stats = st }) model.entities }
