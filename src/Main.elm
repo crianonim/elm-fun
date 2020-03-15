@@ -46,8 +46,12 @@ type alias Id =
     String
 
 
-type Entity
-    = Mob Id Stats String
+type alias Entity =
+    { id : Id
+    , stats : Stats
+    , name : String
+    , alive : Bool
+    }
 
 
 type Page
@@ -77,7 +81,7 @@ init =
         ]
     , currentRoom = "cell"
     , page = StartPage
-    , entities = Dict.fromList [ ( "player", Mob "player" (Stats 20 20 4) "Player" ), ( "#g1", Mob "#g1" (Stats 10 10 3) "Goblin" ) ]
+    , entities = Dict.fromList [ ( "player", Entity "player" (Stats 20 20 4) "Player" True ), ( "#g1", Entity "#g1" (Stats 10 10 3) "Goblin" True ) ]
     }
 
 
@@ -98,6 +102,7 @@ update msg model =
     case msg of
         Attack id ->
             attackMsg model "player" id
+                |> checkHealth
 
         Rest ->
             playTurn 1 model
@@ -211,8 +216,24 @@ viewRoomItem model room =
 viewEntity : Maybe Entity -> Html Msg
 viewEntity entity =
     case entity of
-        Just (Mob id stats name) ->
-            div [] [ text name, viewStats stats, button [ onClick (Attack id) ] [ text "Attack!" ] ]
+        Just { id, name, stats, alive } ->
+            div []
+                [ text
+                    ((if alive then
+                        " alive "
+
+                      else
+                        " dead "
+                     )
+                        ++ name
+                    )
+                , viewStats stats
+                , if alive then
+                    button [ onClick (Attack id) ] [ text "Attack!" ]
+
+                  else
+                    text ""
+                ]
 
         Nothing ->
             p [] [ text "Bad entity" ]
@@ -272,27 +293,23 @@ attackMsg model attId defId =
                 ( att, def ) =
                     attackAction ( attacker, defender )
             in
-            case def of
-                Mob id _ _ ->
-                    { model | entities = Dict.update id (\_ -> Just def) model.entities }
+            { model | entities = Dict.update defId (\_ -> Just def) model.entities }
 
 
 attackAction : ( Entity, Entity ) -> ( Entity, Entity )
 attackAction ( attacker, defender ) =
     let
-        ( _, attStats, _ ) =
-            case attacker of
-                Mob i s name ->
-                    ( i, s, name )
-
-        ( defId, defStats, defName ) =
-            case defender of
-                Mob i s name ->
-                    ( i, s, name )
+        stats =
+            defender.stats
     in
-    ( attacker, Mob defId { defStats | hp = defStats.hp - attStats.attack } defName )
+    ( attacker, { defender | stats = { stats | hp = defender.stats.hp - attacker.stats.attack } } )
 
 
 findEntity : Model -> Id -> Maybe Entity
 findEntity model id =
     Dict.get id model.entities
+
+
+checkHealth : Model -> Model
+checkHealth model =
+    { model | entities = Dict.map (\k v -> { v | alive = v.stats.hp > 0 }) model.entities }
