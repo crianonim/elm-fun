@@ -85,7 +85,7 @@ init =
         , Room "safety" "Safety" [ Exit "South" "corridor" Nothing ] False []
         ]
     , currentRoom = "cell"
-    , page = StartPage
+    , page = PlayingPage
     , entities = Dict.fromList [ ( "player", Entity "player" (Stats 20 20 4) "Player" True ), ( "#g1", Entity "#g1" (Stats 10 10 3) "Goblin" True ) ]
     }
 
@@ -128,30 +128,23 @@ update msg model =
 
                 exit =
                     Maybe.andThen (\r -> findInList (\e -> e.name == buttonName) r.exits) room
-
-                -- case room of
-                --     Just r ->
-                --         findInList (\e -> e.name == buttonName) r.exits
-                --     Nothing ->
-                --         Nothing
+               
             in
+          
             case exit of
                 Just e ->
-                    case e.blockedByEntity of
-                        Just id ->
-                            case findEntity model id of
-                                Just entity ->
-                                    if entity.alive then
-                                        model
+                    e.blockedByEntity
+                        |> Maybe.andThen (\id -> findEntity model id)
+                        |> Maybe.andThen
+                            (\entity ->
+                                case entity.alive of
+                                    True ->
+                                        Just model
 
-                                    else
-                                        actionGo e model
-
-                                Nothing ->
-                                    actionGo e model
-
-                        Nothing ->
-                            actionGo e model
+                                    False ->
+                                        Maybe.Nothing
+                            )
+                        |> Maybe.withDefault (actionGo e model)
 
                 Nothing ->
                     log "BAD" model
@@ -312,7 +305,7 @@ playTurn turns model =
 attackMsg : Model -> Id -> Id -> Model
 attackMsg model attId defId =
     case
-        Maybe.map2 (\att def -> ( att, def )) (findEntity model attId) (findEntity model defId)
+        Maybe.map2 Tuple.pair (findEntity model attId) (findEntity model defId)
     of
         Nothing ->
             model
@@ -359,4 +352,4 @@ heal id model =
         st =
             { stats | hp = Basics.min (ent.stats.hp + 1) ent.stats.hpMax }
     in
-    { model | entities = Dict.update id (\_ -> Just { ent | stats = st }) model.entities }
+    { model | entities = Dict.insert id { ent | stats = st } model.entities }
